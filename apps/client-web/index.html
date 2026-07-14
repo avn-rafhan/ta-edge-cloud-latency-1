@@ -1,72 +1,92 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <title>Uji Latensi: Cloud vs Edge</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; background: #007bff; color: white; }
-        button.edge { background: #28a745; }
-        .metric { font-size: 24px; font-weight: bold; color: #333; margin-top: 10px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uji Latensi: Cloud vs Edge</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Network Benchmark</p>
+      <h1>Uji Perbandingan Latensi Jaringan</h1>
+      <p class="subtitle">Bandingkan waktu respons antara arsitektur Cloud dan Edge secara langsung dari browser Anda.</p>
+    </header>
 
-    <h1>Uji Perbandingan Latensi Jaringan</h1>
-    
-    <div class="card">
-        <label>Jumlah Data yang Ingin Ditarik:</label>
+    <div class="card control-card">
+      <label for="dataSize">Jumlah Data yang Ingin Ditarik</label>
+      <div class="input-wrap">
         <input type="number" id="dataSize" value="100" min="1">
+        <span class="input-suffix">records</span>
+      </div>
     </div>
 
-    <div class="card">
-        <h2>Arsitektur Cloud (GCP)</h2>
-        <button onclick="testLatency('cloud')">Uji Latensi Cloud</button>
+    <div class="arena">
+      <div class="card test-card cloud-card">
+        <div class="card-head">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          </span>
+          <h2>Arsitektur Cloud <span class="tag">GCP</span></h2>
+        </div>
         <div class="metric" id="cloudLatency">- ms</div>
-    </div>
+        <button onclick="testLatency('cloud')">Uji Latensi Cloud</button>
+      </div>
 
-    <div class="card">
-        <h2>Arsitektur Edge (Docker Lokal)</h2>
-        <button class="edge" onclick="testLatency('edge')">Uji Latensi Edge</button>
+      <span class="vs">VS</span>
+
+      <div class="card test-card edge-card">
+        <div class="card-head">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="0.8" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="0.8" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <h2>Arsitektur Edge <span class="tag">Docker Lokal</span></h2>
+        </div>
         <div class="metric" id="edgeLatency">- ms</div>
+        <button class="edge" onclick="testLatency('edge')">Uji Latensi Edge</button>
+      </div>
     </div>
 
-    <div class="card">
+    <div class="card log-card">
+      <div class="log-header">
+        <div class="log-dots"><span></span><span></span><span></span></div>
         <h3>Log Data Terakhir yang Diterima</h3>
-        <pre id="dataLog" style="background: #eee; padding: 10px; max-height: 200px; overflow-y: auto;">Belum ada data.</pre>
+      </div>
+      <pre id="dataLog">Belum ada data.</pre>
     </div>
+  </div>
 
-    <script>
-        // GANTI URL INI DENGAN URL GCP ANDA
-        const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data'; 
-        const EDGE_URL = 'http://localhost:8080/api/data';
+  <script>
+    // GANTI URL INI DENGAN URL GCP ANDA
+    const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data'; 
+    const EDGE_URL = 'http://localhost:8080/api/data';
+    
+    async function testLatency(target) {
+        const size = document.getElementById('dataSize').value;
+        const url = target === 'cloud' ? `${CLOUD_URL}?size=${size}` : `${EDGE_URL}?size=${size}`;
+        const metricElement = target === 'cloud' ? document.getElementById('cloudLatency') : document.getElementById('edgeLatency');
 
-        async function testLatency(target) {
-            const size = document.getElementById('dataSize').value;
-            const url = target === 'cloud' ? `${CLOUD_URL}?size=${size}` : `${EDGE_URL}?size=${size}`;
-            const metricElement = target === 'cloud' ? document.getElementById('cloudLatency') : document.getElementById('edgeLatency');
-            
-            metricElement.innerText = "Mengambil data...";
-            
-            // Catat waktu sebelum request dikirim
-            const startTime = performance.now();
-            
-            try {
-                const response = await fetch(url);
-                const result = await response.json();
-                
-                // Catat waktu setelah response diterima
-                const endTime = performance.now();
-                const latency = (endTime - startTime).toFixed(2); // Presisi milidetik
-                
-                metricElement.innerText = `${latency} ms`;
-                document.getElementById('dataLog').innerText = JSON.stringify(result.payload, null, 2);
-            } catch (error) {
-                metricElement.innerText = "Error / Offline";
-                console.error(error);
-            }
+        metricElement.innerText = "Mengambil data...";
+
+        // Catat waktu sebelum request dikirim
+        const startTime = performance.now();
+
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+
+            // Catat waktu setelah response diterima
+            const endTime = performance.now();
+            const latency = (endTime - startTime).toFixed(2); // Presisi milidetik
+
+            metricElement.innerText = `${latency} ms`;
+            document.getElementById('dataLog').innerText = JSON.stringify(result.payload, null, 2);
+        } catch (error) {
+            metricElement.innerText = "Error / Offline";
+            console.error(error);
         }
-    </script>
+    }
+  </script>
 </body>
 </html>

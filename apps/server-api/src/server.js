@@ -1,34 +1,35 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs'); // Modul bawaan untuk membaca file
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Mengizinkan Web UI mengakses API ini dari domain berbeda (CORS)
 app.use(cors());
 
-// Fungsi untuk membuat data tiruan secara dinamis
-function generateData(count) {
-    const dataList = [];
-    for (let i = 1; i <= count; i++) {
-        dataList.push({
-            id: i,
-            name: `Item ke-${i}`,
-            timestamp: new Date().toISOString(),
-            status: "Active",
-            value: Math.random() * 100
-        });
-    }
-    return dataList;
+// Membaca dataset sekali saja saat server pertama kali menyala (masuk ke RAM)
+const datasetPath = path.join(__dirname, 'dataset/dataset.json');
+let realDataset = [];
+
+try {
+    const rawData = fs.readFileSync(datasetPath, 'utf8');
+    realDataset = JSON.parse(rawData);
+    console.log(`Berhasil memuat ${realDataset.length} data dari dataset riil.`);
+} catch (error) {
+    console.error("Gagal membaca file dataset.json:", error);
 }
 
-// Endpoint API: Contoh http://localhost:3000/api/data?size=100
+// Endpoint API untuk menarik data riil berdasarkan jumlah yang diminta
 app.get('/api/data', (req, res) => {
-    const size = parseInt(req.query.size) || 10; // Default 10 data jika tidak diisi
-    const data = generateData(size);
+    const size = parseInt(req.query.size) || 10;
+    
+    // Mengambil data dari index 0 hingga sejumlah 'size' yang diminta user
+    const slicedData = realDataset.slice(0, size);
+
     res.json({
         success: true,
-        total_data: data.length,
-        payload: data
+        total_data: slicedData.length,
+        payload: slicedData
     });
 });
 
