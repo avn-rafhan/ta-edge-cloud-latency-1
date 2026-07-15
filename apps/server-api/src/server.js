@@ -9,6 +9,12 @@ app.use(cors());
 
 // Membaca dataset sekali saja saat server pertama kali menyala (masuk ke RAM)
 const datasetPath = path.join(__dirname, 'dataset/dataset.json');
+const DATASET_METADATA = {
+    source_url: 'https://data.kemendikdasmen.go.id/dataset/td/sarana-dan-prasarana-qraac/jumlah-perpustakaan-menurut-kondisi-2025-semua-wilayah-sd-mi-sederajat-1',
+    title: 'Jumlah Perpustakaan Menurut Kondisi 2025 - SD/MI',
+    organization: 'Kemendikbudristek',
+    description: 'Dataset jumlah perpustakaan menurut kondisi 2025 untuk semua wilayah SD/MI sederajat.'
+};
 let realDataset = [];
 
 try {
@@ -28,8 +34,19 @@ app.get('/api/data', (req, res) => {
 
     res.json({
         success: true,
+        requested_size: size,
         total_data: slicedData.length,
+        total_dataset: realDataset.length,
         payload: slicedData
+    });
+});
+
+// Endpoint untuk mendapatkan informasi dataset (total record)
+app.get('/api/info', (req, res) => {
+    res.json({
+        success: true,
+        total_dataset: realDataset.length,
+        ...DATASET_METADATA
     });
 });
 
