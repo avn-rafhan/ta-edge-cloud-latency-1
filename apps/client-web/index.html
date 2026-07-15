@@ -15,11 +15,33 @@
     </header>
 
     <div class="card control-card">
-      <label for="dataSize">Jumlah Data yang Ingin Ditarik</label>
-      <div class="input-wrap">
-        <input type="number" id="dataSize" value="100" min="1">
-        <span class="input-suffix">records</span>
+      <div class="label-with-info">
+        <label for="dataSize">Jumlah Data yang Ingin Ditarik</label>
+        <button id="datasetInfoBtn" type="button" class="info-btn" aria-label="Informasi dataset">i</button>
       </div>
+      <div class="control-row">
+        <div class="input-wrap">
+          <input type="number" id="dataSize" value="1" min="1">
+          <span class="input-suffix">records</span>
+        </div>
+        <div class="session-actions">
+          <button id="sessionToggleBtn" class="session-toggle-btn" type="button">Mulai Sesi</button>
+          <button id="downloadCsvBtn" class="download-btn" type="button" aria-label="Unduh hasil pengujian (.csv)" title="Unduh hasil pengujian (.csv)" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"></path>
+              <path d="m7 10 5 5 5-5"></path>
+              <path d="M5 19h14"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="session-status-row">
+        <span id="sessionStatusBadge" class="session-status-badge">
+          <span class="record-dot"></span>
+          <span id="sessionStatusText">Sesi belum dimulai</span>
+        </span>
+      </div>
+      <p id="dataError" class="input-error" aria-live="polite"></p>
     </div>
 
     <div class="arena">
@@ -31,7 +53,9 @@
           <h2>Arsitektur Cloud <span class="tag">GCP</span></h2>
         </div>
         <div class="metric" id="cloudLatency">- ms</div>
-        <button onclick="testLatency('cloud')">Uji Latensi Cloud</button>
+        <div class="card-action-shell">
+          <button class="test-button" type="button" onclick="testLatency('cloud')">Uji Latensi Cloud</button>
+        </div>
       </div>
 
       <span class="vs">VS</span>
@@ -44,10 +68,33 @@
           <h2>Arsitektur Edge <span class="tag">Docker Lokal</span></h2>
         </div>
         <div class="metric" id="edgeLatency">- ms</div>
-        <button class="edge" onclick="testLatency('edge')">Uji Latensi Edge</button>
+        <div class="card-action-shell">
+          <button class="edge test-button" type="button" onclick="testLatency('edge')">Uji Latensi Edge</button>
+        </div>
       </div>
     </div>
-
+    
+    <div class="arena session-action-area">
+      <div class="session-cta-shell">
+        <button id="combinedTestButton" class="edge test-button session-primary-button" type="button" onclick="runSessionTest()">Uji Cloud & Edge</button>
+      </div>
+    </div>
+    
+    <div id="datasetInfoDialog" class="dialog-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="datasetInfoTitle">
+      <div class="dialog-panel">
+        <button id="closeDatasetInfo" class="dialog-close" aria-label="Tutup dialog">×</button>
+        <h3 id="datasetInfoTitle">Informasi Dataset</h3>
+        <p id="datasetInfoDescription">Informasi dataset akan ditampilkan di sini.</p>
+        <ul class="dataset-info-list">
+          <li><strong>Total record:</strong> <span id="datasetTotalRecords">-</span></li>
+          <li><strong>Judul dataset:</strong> <span id="datasetTitle">-</span></li>
+          <li><strong>Asal organisasi:</strong> <span id="datasetOrganization">-</span></li>
+        </ul>
+        <p id="datasetInfoExtra">Dataset ini digunakan untuk mengukur latensi pengambilan data dari kedua arsitektur.</p>
+        <a id="datasetSourceLink" href="#" target="_blank" rel="noopener noreferrer">Tautan sumber dataset</a>
+      </div>
+    </div>
+    
     <div class="card log-card">
       <div class="log-header">
         <div class="log-dots"><span></span><span></span><span></span></div>
@@ -57,36 +104,6 @@
     </div>
   </div>
 
-  <script>
-    // GANTI URL INI DENGAN URL GCP ANDA
-    const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data'; 
-    const EDGE_URL = 'http://localhost:8080/api/data';
-    
-    async function testLatency(target) {
-        const size = document.getElementById('dataSize').value;
-        const url = target === 'cloud' ? `${CLOUD_URL}?size=${size}` : `${EDGE_URL}?size=${size}`;
-        const metricElement = target === 'cloud' ? document.getElementById('cloudLatency') : document.getElementById('edgeLatency');
-
-        metricElement.innerText = "Mengambil data...";
-
-        // Catat waktu sebelum request dikirim
-        const startTime = performance.now();
-
-        try {
-            const response = await fetch(url);
-            const result = await response.json();
-
-            // Catat waktu setelah response diterima
-            const endTime = performance.now();
-            const latency = (endTime - startTime).toFixed(2); // Presisi milidetik
-
-            metricElement.innerText = `${latency} ms`;
-            document.getElementById('dataLog').innerText = JSON.stringify(result.payload, null, 2);
-        } catch (error) {
-            metricElement.innerText = "Error / Offline";
-            console.error(error);
-        }
-    }
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
