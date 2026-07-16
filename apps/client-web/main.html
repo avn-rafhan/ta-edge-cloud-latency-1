@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uji Latensi: Cloud vs Edge</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Network Benchmark</p>
+      <h1>Uji Perbandingan Latensi Jaringan</h1>
+      <p class="subtitle">Bandingkan waktu respons antara arsitektur Cloud dan Edge secara langsung dari browser Anda.</p>
+    </header>
+
+    <div class="card control-card">
+      <div class="label-with-info">
+        <label for="dataSize">Jumlah Data yang Ingin Ditarik</label>
+        <!-- <button id="datasetInfoBtn" type="button" class="info-btn" aria-label="Informasi dataset">i</button> -->
+      </div>
+      <div class="control-row">
+        <div class="input-wrap">
+          <input type="number" id="dataSize" value="1" min="1">
+          <span class="input-suffix">records</span>
+        </div>
+        <div class="session-actions">
+          <button id="sessionToggleBtn" class="session-toggle-btn" type="button">Mulai Sesi</button>
+          <button id="downloadCsvBtn" class="download-btn" type="button" aria-label="Unduh hasil pengujian (.csv)" title="Unduh hasil pengujian (.csv)" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"></path>
+              <path d="m7 10 5 5 5-5"></path>
+              <path d="M5 19h14"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="session-status-row">
+        <span id="sessionStatusBadge" class="session-status-badge">
+          <span class="record-dot"></span>
+          <span id="sessionStatusText">Sesi belum dimulai</span>
+        </span>
+      </div>
+      <p id="dataError" class="input-error" aria-live="polite"></p>
+    </div>
+
+    <div class="arena">
+      <div class="card test-card cloud-card">
+        <div class="card-head">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          </span>
+          <h2>Arsitektur Cloud <span class="tag">GCP</span></h2>
+        </div>
+        <div class="metric" id="cloudLatency">- ms</div>
+        <div class="card-action-shell">
+          <button class="test-button" type="button" onclick="testLatency('cloud')">Uji Latensi Cloud</button>
+        </div>
+      </div>
+
+      <span class="vs">VS</span>
+
+      <div class="card test-card edge-card">
+        <div class="card-head">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="0.8" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="0.8" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <h2>Arsitektur Edge <span class="tag">Docker Lokal</span></h2>
+        </div>
+        <div class="metric" id="edgeLatency">- ms</div>
+        <div class="card-action-shell">
+          <button class="edge test-button" type="button" onclick="testLatency('edge')">Uji Latensi Edge</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="arena session-action-area" style="display: flex; justify-content: center;">
+      <div class="session-cta-shell" style="display: flex; justify-content: center;">
+        <button id="combinedTestButton" class="edge test-button session-primary-button" type="button" onclick="runSessionTest() " style="width: 100%; max-width: 420px; margin: 0 auto; display: block; box-sizing: border-box;">Uji Cloud & Edge</button>
+      </div>
+    </div>
+    
+    <div id="datasetInfoDialog" class="dialog-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="datasetInfoTitle">
+      <div class="dialog-panel">
+        <button id="closeDatasetInfo" class="dialog-close" aria-label="Tutup dialog">x</button>
+        <h3 id="datasetInfoTitle">Informasi Dataset</h3>
+        <p id="datasetInfoDescription">Informasi dataset akan ditampilkan di sini.</p>
+        <ul class="dataset-info-list">
+          <li><strong>Total record:</strong> <span id="datasetTotalRecords">-</span></li>
+          <li><strong>Judul dataset:</strong> <span id="datasetTitle">-</span></li>
+          <li><strong>Asal organisasi:</strong> <span id="datasetOrganization">-</span></li>
+        </ul>
+        <p id="datasetInfoExtra">Dataset ini digunakan untuk mengukur latensi pengambilan data dari kedua arsitektur.</p>
+        <a id="datasetSourceLink" href="#" target="_blank" rel="noopener noreferrer">Tautan sumber dataset</a>
+      </div>
+    </div>
+    
+    <div class="card log-card">
+      <div class="log-header">
+        <div class="log-dots"><span></span><span></span><span></span></div>
+        <h3>Log Data Terakhir yang Diterima</h3>
+      </div>
+      <pre id="dataLog">Belum ada data.</pre>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
