@@ -1,9 +1,8 @@
-// GANTI URL INI DENGAN URL GCP ANDA
 const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data';
 const EDGE_URL = 'http://localhost:8080/api/data';
+const DEFAULT_BENCHMARK_API_URL = 'http://localhost:3000/api/benchmark';
+const DEFAULT_INFO_API_URL = 'http://localhost:3000/api/info';
 
-const CLOUD_INFO = CLOUD_URL.replace(/\/api\/data.*$/, '/api/info');
-const EDGE_INFO = EDGE_URL.replace(/\/api\/data.*$/, '/api/info');
 let datasetInfo = {
     title: '-',
     description: 'Informasi dataset belum tersedia.',
@@ -13,6 +12,27 @@ let datasetInfo = {
 let isSessionActive = false;
 let sessionRecords = [];
 let sessionScenarioCounter = 0;
+
+function getApiBaseUrl() {
+    const explicitBase = window.__APP_CONFIG__?.apiBaseUrl || new URLSearchParams(window.location.search).get('apiBaseUrl');
+    if (explicitBase) return explicitBase.replace(/\/$/, '');
+
+    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3000';
+    }
+
+    return '';
+}
+
+function getBenchmarkApiUrl() {
+    const base = getApiBaseUrl();
+    return base ? `${base}/api/benchmark` : '/api/benchmark';
+}
+
+function getInfoApiUrl() {
+    const base = getApiBaseUrl();
+    return base ? `${base}/api/info` : '/api/info';
+}
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -77,13 +97,15 @@ async function init(){
     });
 
     const results = await Promise.allSettled([
-        fetchInfo(CLOUD_INFO),
-        fetchInfo(EDGE_INFO)
+        fetchInfo(getInfoApiUrl()),
+        fetchInfo(CLOUD_URL.replace(/\/api\/data.*$/, '/api/info')),
+        fetchInfo(EDGE_URL.replace(/\/api\/data.*$/, '/api/info'))
     ]);
 
-    const cloudInfo = results[0].status === 'fulfilled' ? results[0].value : null;
-    const edgeInfo = results[1].status === 'fulfilled' ? results[1].value : null;
-    datasetInfo = cloudInfo || edgeInfo || datasetInfo;
+    const backendInfo = results[0].status === 'fulfilled' ? results[0].value : null;
+    const cloudInfo = results[1].status === 'fulfilled' ? results[1].value : null;
+    const edgeInfo = results[2].status === 'fulfilled' ? results[2].value : null;
+    datasetInfo = backendInfo || cloudInfo || edgeInfo || datasetInfo;
     populateDatasetInfo(datasetInfo);
 
     if (typeof datasetInfo.total_dataset === 'number') {
@@ -237,25 +259,57 @@ function toggleSession(){
 
 async function testLatency(target) {
     const size = parseInt(document.getElementById('dataSize').value, 10) || 1;
-    const url = target === 'cloud' ? `${CLOUD_URL}?size=${size}` : `${EDGE_URL}?size=${size}`;
-    const metricElement = target === 'cloud' ? document.getElementById('cloudLatency') : document.getElementById('edgeLatency');
+    const benchmarkUrl = getBenchmarkApiUrl();
+    const isCombined = target === 'both';
+    const cloudMetricElement = document.getElementById('cloudLatency');
+    const edgeMetricElement = document.getElementById('edgeLatency');
 
-    metricElement.innerText = 'Mengambil data...';
+    if (isCombined) {
+        cloudMetricElement.innerText = 'Mengambil data...';
+        edgeMetricElement.innerText = 'Mengambil data...';
+    } else {
+        const metricElement = target === 'cloud' ? cloudMetricElement : edgeMetricElement;
+        metricElement.innerText = 'Mengambil data...';
+    }
 
     const startTime = performance.now();
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(`${benchmarkUrl}?target=${encodeURIComponent(target)}&size=${size}`);
         const result = await response.json();
 
         const endTime = performance.now();
         const latency = (endTime - startTime).toFixed(2);
 
-        metricElement.innerText = `${latency} ms`;
-        document.getElementById('dataLog').innerText = JSON.stringify(result.payload, null, 2);
-        return { target, latency: Number(latency), payload: result.payload };
+        if (isCombined) {
+            const cloudLatency = result?.cloud?.latency_ms != null ? Number(result.cloud.latency_ms.toFixed(2)) : null;
+            const edgeLatency = result?.edge?.latency_ms != null ? Number(result.edge.latency_ms.toFixed(2)) : null;
+
+            cloudMetricElement.innerText = cloudLatency != null ? `${cloudLatency} ms` : 'Error / Offline';
+            edgeMetricElement.innerText = edgeLatency != null ? `${edgeLatency} ms` : 'Error / Offline';
+            document.getElementById('dataLog').innerText = JSON.stringify({ cloud: result?.cloud, edge: result?.edge }, null, 2);
+            return {
+                target,
+                latency: Number(latency),
+                cloudLatency,
+                edgeLatency,
+                payload: result?.cloud?.payload || result?.edge?.payload || null
+            };
+        }
+
+        const singleLatency = result?.latency_ms != null ? Number(result.latency_ms.toFixed(2)) : null;
+        const metricElement = target === 'cloud' ? cloudMetricElement : edgeMetricElement;
+        metricElement.innerText = singleLatency != null ? `${singleLatency} ms` : 'Error / Offline';
+        document.getElementById('dataLog').innerText = JSON.stringify(result, null, 2);
+        return { target, latency: singleLatency, payload: result?.payload || null };
     } catch (error) {
-        metricElement.innerText = 'Error / Offline';
+        const metricElement = isCombined ? null : (target === 'cloud' ? cloudMetricElement : edgeMetricElement);
+        if (metricElement) {
+            metricElement.innerText = 'Error / Offline';
+        } else {
+            cloudMetricElement.innerText = 'Error / Offline';
+            edgeMetricElement.innerText = 'Error / Offline';
+        }
         console.error(error);
         return { target, latency: null, payload: null };
     }
@@ -268,17 +322,14 @@ async function runSessionTest(){
     }
 
     const size = parseInt(document.getElementById('dataSize').value, 10) || 1;
-    const [cloudResult, edgeResult] = await Promise.all([
-        testLatency('cloud'),
-        testLatency('edge')
-    ]);
+    const benchmarkResult = await testLatency('both');
 
     if (isSessionActive) {
         const record = {
             id_skenario: `S${++sessionScenarioCounter}`,
             jumlah_record: size,
-            latensi_edge_ms: edgeResult && edgeResult.latency !== null ? edgeResult.latency : null,
-            latensi_cloud_ms: cloudResult && cloudResult.latency !== null ? cloudResult.latency : null
+            latensi_edge_ms: benchmarkResult && benchmarkResult.edgeLatency !== null ? benchmarkResult.edgeLatency : null,
+            latensi_cloud_ms: benchmarkResult && benchmarkResult.cloudLatency !== null ? benchmarkResult.cloudLatency : null
         };
 
         sessionRecords.push(record);
