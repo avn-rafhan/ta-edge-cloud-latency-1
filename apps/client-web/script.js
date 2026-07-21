@@ -1,5 +1,5 @@
 const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data';
-const EDGE_URL = 'http://localhost:8080/api/data';
+const EDGE_URL = 'https://ta-edge-cloud-latency-1.onrender.com/api/data';
 const DEFAULT_BENCHMARK_API_URL = 'http://localhost:3000/api/benchmark';
 const DEFAULT_INFO_API_URL = 'http://localhost:3000/api/info';
 
@@ -17,11 +17,7 @@ function getApiBaseUrl() {
     const explicitBase = window.__APP_CONFIG__?.apiBaseUrl || new URLSearchParams(window.location.search).get('apiBaseUrl');
     if (explicitBase) return explicitBase.replace(/\/$/, '');
 
-    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:3000';
-    }
-
-    return '';
+    return 'https://ta-edge-cloud-latency-1.onrender.com';
 }
 
 function getBenchmarkApiUrl() {
