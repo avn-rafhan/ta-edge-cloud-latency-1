@@ -40,7 +40,7 @@ try {
 }
 
 const CLOUD_URL = process.env.CLOUD_URL || 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data';
-const EDGE_URL = process.env.EDGE_URL || 'http://localhost:8080/api/data';
+const EDGE_URL = process.env.EDGE_URL || 'https://ta-edge-cloud-latency-1.onrender.com/api/data';
 
 function buildUrl(baseUrl, size) {
     const separator = baseUrl.includes('?') ? '&' : '?';
