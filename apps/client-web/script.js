@@ -1,7 +1,11 @@
-const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data';
-const EDGE_URL = 'https://ta-edge-cloud-latency-1.onrender.com/api/data';
+//const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data';
+const CLOUD_URL = 'https://34.101.198.59.sslip.io/api/data';
+const RENDER_URL = 'https://ta-edge-cloud-latency-1.onrender.com/api/data';
+const EDGE_URL = 'https://edge-node.mhfarhianalmz.workers.dev/api/data';
+
 const DEFAULT_BENCHMARK_API_URL = 'http://localhost:3000/api/benchmark';
 const DEFAULT_INFO_API_URL = 'http://localhost:3000/api/info';
+const ALL_TARGET = 'both';
 
 let datasetInfo = {
     title: '-',
@@ -17,7 +21,7 @@ function getApiBaseUrl() {
     const explicitBase = window.__APP_CONFIG__?.apiBaseUrl || new URLSearchParams(window.location.search).get('apiBaseUrl');
     if (explicitBase) return explicitBase.replace(/\/$/, '');
 
-    return 'https://ta-edge-cloud-latency-1.onrender.com';
+    return 'https://edge-node.mhfarhianalmz.workers.dev';
 }
 
 function getBenchmarkApiUrl() {
@@ -95,13 +99,15 @@ async function init(){
     const results = await Promise.allSettled([
         fetchInfo(getInfoApiUrl()),
         fetchInfo(CLOUD_URL.replace(/\/api\/data.*$/, '/api/info')),
+        fetchInfo(RENDER_URL.replace(/\/api\/data.*$/, '/api/info')),
         fetchInfo(EDGE_URL.replace(/\/api\/data.*$/, '/api/info'))
     ]);
 
     const backendInfo = results[0].status === 'fulfilled' ? results[0].value : null;
     const cloudInfo = results[1].status === 'fulfilled' ? results[1].value : null;
-    const edgeInfo = results[2].status === 'fulfilled' ? results[2].value : null;
-    datasetInfo = backendInfo || cloudInfo || edgeInfo || datasetInfo;
+    const renderInfo = results[2].status === 'fulfilled' ? results[2].value : null;
+    const edgeInfo = results[3].status === 'fulfilled' ? results[3].value : null;
+    datasetInfo = backendInfo || cloudInfo || renderInfo || edgeInfo || datasetInfo;
     populateDatasetInfo(datasetInfo);
 
     if (typeof datasetInfo.total_dataset === 'number') {
@@ -131,12 +137,13 @@ async function fetchInfo(url){
 function populateDatasetInfo(info){
     if (!info) return;
     document.getElementById('datasetTotalRecords').innerText = typeof info.total_dataset === 'number' ? info.total_dataset : '-';
-    document.getElementById('datasetTitle').innerText = info.title || '-';
-    document.getElementById('datasetOrganization').innerText = info.organization || '-';
-    document.getElementById('datasetInfoDescription').innerText = info.description || 'Informasi dataset yang digunakan untuk pengujian latensi.';
+    document.getElementById('datasetTitle').innerText = info.title || info.title_1 || '-';
+    document.getElementById('datasetOrganization').innerText = info.organization || info.organization_1 || '-';
+    document.getElementById('datasetInfoDescription').innerText = info.description || info.description_1 || 'Informasi dataset yang digunakan untuk pengujian latensi.';
     const sourceLink = document.getElementById('datasetSourceLink');
-    sourceLink.href = info.source_url || '#';
-    sourceLink.innerText = info.source_url ? 'Tautan sumber dataset' : 'Sumber dataset tidak tersedia';
+    const sourceUrl = info.source_url || info.source_url_1;
+    sourceLink.href = sourceUrl || '#';
+    sourceLink.innerText = sourceUrl ? 'Tautan sumber dataset' : 'Sumber dataset tidak tersedia';
 }
 
 function openInfoDialog(dialog){
@@ -155,6 +162,7 @@ function renderSessionUI(){
     const statusText = document.getElementById('sessionStatusText');
     const combinedBtn = document.getElementById('combinedTestButton');
     const cloudShell = document.querySelector('.cloud-card .card-action-shell');
+    const renderShell = document.querySelector('.render-card .card-action-shell');
     const edgeShell = document.querySelector('.edge-card .card-action-shell');
     const isValid = isInputValid();
 
@@ -178,6 +186,10 @@ function renderSessionUI(){
 
     if (edgeShell) {
         edgeShell.classList.toggle('is-hidden', isSessionActive);
+    }
+
+    if (renderShell) {
+        renderShell.classList.toggle('is-hidden', isSessionActive);
     }
 
     if (combinedBtn) {
@@ -230,6 +242,7 @@ function validateInput(){
 
     if (!valid) {
         document.getElementById('cloudLatency').innerText = '- ms';
+        document.getElementById('renderLatency').innerText = '- ms';
         document.getElementById('edgeLatency').innerText = '- ms';
     }
 
@@ -256,15 +269,17 @@ function toggleSession(){
 async function testLatency(target) {
     const size = parseInt(document.getElementById('dataSize').value, 10) || 1;
     const benchmarkUrl = getBenchmarkApiUrl();
-    const isCombined = target === 'both';
+    const isCombined = target === 'both' || target === ALL_TARGET;
     const cloudMetricElement = document.getElementById('cloudLatency');
+    const renderMetricElement = document.getElementById('renderLatency');
     const edgeMetricElement = document.getElementById('edgeLatency');
 
     if (isCombined) {
         cloudMetricElement.innerText = 'Mengambil data...';
+        renderMetricElement.innerText = 'Mengambil data...';
         edgeMetricElement.innerText = 'Mengambil data...';
     } else {
-        const metricElement = target === 'cloud' ? cloudMetricElement : edgeMetricElement;
+        const metricElement = target === 'cloud' ? cloudMetricElement : target === 'render' ? renderMetricElement : edgeMetricElement;
         metricElement.innerText = 'Mengambil data...';
     }
 
@@ -272,38 +287,52 @@ async function testLatency(target) {
 
     try {
         const response = await fetch(`${benchmarkUrl}?target=${encodeURIComponent(target)}&size=${size}`);
+        if (!response.ok) {
+            throw new Error(`Request benchmark gagal dengan status ${response.status}.`);
+        }
         const result = await response.json();
 
         const endTime = performance.now();
         const latency = (endTime - startTime).toFixed(2);
 
         if (isCombined) {
-            const cloudLatency = result?.cloud?.latency_ms != null ? Number(result.cloud.latency_ms.toFixed(2)) : null;
-            const edgeLatency = result?.edge?.latency_ms != null ? Number(result.edge.latency_ms.toFixed(2)) : null;
+            const getTargetLatency = (targetResult) => (
+                targetResult?.success === true && Number.isFinite(Number(targetResult.latency_ms))
+                    ? Number(Number(targetResult.latency_ms).toFixed(2))
+                    : null
+            );
+            const cloudLatency = getTargetLatency(result?.cloud);
+            const renderLatency = getTargetLatency(result?.render);
+            const edgeLatency = getTargetLatency(result?.edge);
 
             cloudMetricElement.innerText = cloudLatency != null ? `${cloudLatency} ms` : 'Error / Offline';
+            renderMetricElement.innerText = renderLatency != null ? `${renderLatency} ms` : 'Error / Offline';
             edgeMetricElement.innerText = edgeLatency != null ? `${edgeLatency} ms` : 'Error / Offline';
-            document.getElementById('dataLog').innerText = JSON.stringify({ cloud: result?.cloud, edge: result?.edge }, null, 2);
+            document.getElementById('dataLog').innerText = JSON.stringify({ cloud: result?.cloud, render: result?.render, edge: result?.edge }, null, 2);
             return {
                 target,
                 latency: Number(latency),
                 cloudLatency,
+                renderLatency,
                 edgeLatency,
-                payload: result?.cloud?.payload || result?.edge?.payload || null
+                payload: result?.cloud?.payload || result?.render?.payload || result?.edge?.payload || null
             };
         }
 
-        const singleLatency = result?.latency_ms != null ? Number(result.latency_ms.toFixed(2)) : null;
-        const metricElement = target === 'cloud' ? cloudMetricElement : edgeMetricElement;
+        const singleLatency = result?.success === true && Number.isFinite(Number(result.latency_ms))
+            ? Number(Number(result.latency_ms).toFixed(2))
+            : null;
+        const metricElement = target === 'cloud' ? cloudMetricElement : target === 'render' ? renderMetricElement : edgeMetricElement;
         metricElement.innerText = singleLatency != null ? `${singleLatency} ms` : 'Error / Offline';
         document.getElementById('dataLog').innerText = JSON.stringify(result, null, 2);
         return { target, latency: singleLatency, payload: result?.payload || null };
     } catch (error) {
-        const metricElement = isCombined ? null : (target === 'cloud' ? cloudMetricElement : edgeMetricElement);
+        const metricElement = isCombined ? null : (target === 'cloud' ? cloudMetricElement : target === 'render' ? renderMetricElement : edgeMetricElement);
         if (metricElement) {
             metricElement.innerText = 'Error / Offline';
         } else {
             cloudMetricElement.innerText = 'Error / Offline';
+            renderMetricElement.innerText = 'Error / Offline';
             edgeMetricElement.innerText = 'Error / Offline';
         }
         console.error(error);
@@ -318,13 +347,14 @@ async function runSessionTest(){
     }
 
     const size = parseInt(document.getElementById('dataSize').value, 10) || 1;
-    const benchmarkResult = await testLatency('both');
+    const benchmarkResult = await testLatency(ALL_TARGET);
 
     if (isSessionActive) {
         const record = {
             id_skenario: `S${++sessionScenarioCounter}`,
             jumlah_record: size,
             latensi_edge_ms: benchmarkResult && benchmarkResult.edgeLatency !== null ? benchmarkResult.edgeLatency : null,
+            latensi_render_ms: benchmarkResult && benchmarkResult.renderLatency !== null ? benchmarkResult.renderLatency : null,
             latensi_cloud_ms: benchmarkResult && benchmarkResult.cloudLatency !== null ? benchmarkResult.cloudLatency : null
         };
 
@@ -337,11 +367,12 @@ async function runSessionTest(){
 function downloadSessionCsv(){
     if (sessionRecords.length === 0) return;
 
-    const headers = ['id_skenario', 'jumlah_record', 'latensi_edge_ms', 'latensi_cloud_ms'];
+    const headers = ['id_skenario', 'jumlah_record', 'latensi_edge_ms', 'latensi_render_ms', 'latensi_cloud_ms'];
     const rows = sessionRecords.map((record) => [
         record.id_skenario,
         record.jumlah_record,
         record.latensi_edge_ms,
+        record.latensi_render_ms,
         record.latensi_cloud_ms
     ]);
 
