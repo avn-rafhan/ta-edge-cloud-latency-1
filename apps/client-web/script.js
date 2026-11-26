@@ -1,11 +1,11 @@
 //const CLOUD_URL = 'https://latency-cloud-app-321690956281.asia-southeast2.run.app/api/data';
-const CLOUD_URL = 'https://34.101.198.59.sslip.io/api/data';
+const CLOUD_URL = 'https://35.212.200.9.sslip.io/api/data';
 const RENDER_URL = 'https://ta-edge-cloud-latency-1.onrender.com/api/data';
 const EDGE_URL = 'https://edge-node.mhfarhianalmz.workers.dev/api/data';
 
 const DEFAULT_BENCHMARK_API_URL = 'http://localhost:3000/api/benchmark';
 const DEFAULT_INFO_API_URL = 'http://localhost:3000/api/info';
-const ALL_TARGET = 'both';
+const ALL_TARGET = 'all';
 
 let datasetInfo = {
     title: '-',
@@ -269,7 +269,7 @@ function toggleSession(){
 async function testLatency(target) {
     const size = parseInt(document.getElementById('dataSize').value, 10) || 1;
     const benchmarkUrl = getBenchmarkApiUrl();
-    const isCombined = target === 'both' || target === ALL_TARGET;
+    const isCombined = target === 'all' || target === ALL_TARGET;
     const cloudMetricElement = document.getElementById('cloudLatency');
     const renderMetricElement = document.getElementById('renderLatency');
     const edgeMetricElement = document.getElementById('edgeLatency');

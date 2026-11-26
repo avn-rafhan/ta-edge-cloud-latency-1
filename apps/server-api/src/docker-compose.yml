@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     environment:
       PORT: "3000"
+      CLOUD_URL: "https://35.212.200.9.sslip.io/api/data"
     expose:
       - "3000"
     healthcheck:
@@ -25,13 +26,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    command:
-      - caddy
-      - reverse-proxy
-      - --from
-      - ${DOMAIN:?Set DOMAIN to the VM public IP hostname, e.g. 34.101.198.59.sslip.io}
-      - --to
-      - api:3000
+    command: caddy reverse-proxy --from 35.212.200.9.sslip.io --to api:3000
     ports:
       - "80:80"
       - "443:443"
