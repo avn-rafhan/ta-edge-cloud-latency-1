@@ -73,11 +73,11 @@ try {
     process.exit(1);
 }
 
-const CLOUD_URL = process.env.CLOUD_URL || 'https://34.101.198.59.sslip.io/api/data';
+const CLOUD_URL = process.env.CLOUD_URL || 'https://35.212.200.9.sslip.io/api/data';
 const RENDER_URL = process.env.RENDER_URL || 'https://ta-edge-cloud-latency-1.onrender.com/api/data';
 const EDGE_URL = process.env.EDGE_URL || 'https://edge-node.mhfarhianalmz.workers.dev/api/data';
 const TARGET_URLS = {
-    cloud: [CLOUD_URL, 'https://34.101.198.59.sslip.io/api/data'],
+    cloud: [CLOUD_URL, 'https://35.212.200.9.sslip.io/api/data'],
     render: [RENDER_URL, 'https://ta-edge-cloud-latency-1.onrender.com/api/data'],
     edge: [EDGE_URL, 'https://edge-node.mhfarhianalmz.workers.dev/api/data']
 };
